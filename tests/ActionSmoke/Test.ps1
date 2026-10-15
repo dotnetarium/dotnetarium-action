@@ -61,8 +61,15 @@ public static class UnsafeCrypto {
             & "$root/scripts/Install.ps1"
         } else {
             $packageVersion = ([IO.Path]::GetFileName($ToolPackage) -replace '^dotnetarium\.', '' -replace '\.nupkg$', '')
-            & dotnet tool install dotnetarium --version $packageVersion --tool-path $env:DNA_TOOL --add-source ([IO.Path]::GetDirectoryName($ToolPackage)) | Out-Host
-            if ($LASTEXITCODE -ne 0) { throw 'Could not install packed CLI.' }
+            $feed = [Security.SecurityElement]::Escape([IO.Path]::GetDirectoryName($ToolPackage))
+            $installConfig = Join-Path $scratch 'local-package.config'
+            "<configuration><packageSources><clear/><add key=`"local`" value=`"$feed`"/></packageSources></configuration>" | Set-Content -LiteralPath $installConfig
+            $savedPackages = $env:NUGET_PACKAGES
+            try {
+                $env:NUGET_PACKAGES = Join-Path $scratch 'install-cache'
+                & dotnet tool install dotnetarium --version $packageVersion --tool-path $env:DNA_TOOL --configfile $installConfig --no-cache | Out-Host
+                if ($LASTEXITCODE -ne 0) { throw 'Could not install packed CLI.' }
+            } finally { $env:NUGET_PACKAGES = $savedPackages }
         }
         & "$root/scripts/Restore.ps1"
         & "$root/scripts/Scan.ps1"
