@@ -14,7 +14,7 @@ The scanner and NuGet analyzer are maintained in
 [dotnetarium/dotnetarium](https://github.com/dotnetarium/dotnetarium), which also
 documents rule and framework coverage.
 
-The Action uses published CLI 2.7.0 by default. The examples pin tested commits;
+The Action defaults to CLI 2.7.1. The examples pin tested commits;
 update these pins deliberately when adopting a newer integration.
 It is tested on GitHub-hosted Ubuntu and Windows. Self-hosted runners need
 PowerShell (`pwsh`); SDK installation is enabled by default.
@@ -86,7 +86,7 @@ Restore failure fails preparation rather than silently treating it as success.
 | Input | Default | Purpose |
 | --- | --- | --- |
 | `target` | Required | Repository-relative `.csproj`, `.sln` or `.slnx` |
-| `version` | `2.7.0` | Exact stable CLI release; 2.7.0 or newer |
+| `version` | `2.7.1` | Exact stable CLI release; 2.7.0 or newer |
 | `setup-dotnet` | `true` | Composite only: install SDKs; disable after existing setup |
 | `dotnet-version` | `8.0.x` and `10.0.x` | SDK versions; include .NET 10 for the tool and required project SDKs/reference packs |
 | `restore` | `true` | Restore before scanning; disable for an already prepared workspace |

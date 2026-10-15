@@ -16,7 +16,7 @@ try {
     $env:GITHUB_OUTPUT = Join-Path $scratch 'outputs.txt'
     $env:GITHUB_STEP_SUMMARY = Join-Path $scratch 'summary.md'
     $env:DNA_TARGET = 'App/App.csproj'
-    $env:DNA_VERSION = '2.7.0'
+    $env:DNA_VERSION = '2.7.1'
     $env:DNA_SETUP = 'false'
     $env:DNA_RESTORE = 'true'
     $env:DNA_PROJECT = 'false'
