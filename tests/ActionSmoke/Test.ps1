@@ -27,6 +27,18 @@ try {
     $env:DNA_SARIF = 'reports/results.sarif'
     & dotnet new classlib -o (Join-Path $scratch 'App') --framework net10.0 --no-restore | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'Could not create Action fixture.' }
+    # Exercise the default loader with inherited framework selection, as used
+    # by LANCommander. An explicit TFM in the fixture hid skipped props before.
+    $fixtureProject = Join-Path $scratch 'App/App.csproj'
+    [xml]$fixtureXml = Get-Content -LiteralPath $fixtureProject -Raw
+    $frameworkNode = $fixtureXml.SelectSingleNode('/Project/PropertyGroup/TargetFramework')
+    $frameworkNode.ParentNode.RemoveChild($frameworkNode) | Out-Null
+    $fixtureXml.Save($fixtureProject)
+    @'
+<Project><PropertyGroup>
+  <TargetFramework Condition="'$(MSBuildProjectName)' != 'LANCommander.SDK' and '$(MSBuildProjectName)' != 'LANCommander.SDK.SourceGenerators' and '$(MSBuildProjectName)' != 'LANCommander.Steam'">net10.0</TargetFramework>
+</PropertyGroup></Project>
+'@ | Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props')
     @'
 using System.Security.Cryptography;
 public static class UnsafeCrypto {
