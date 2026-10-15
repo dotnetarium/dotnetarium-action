@@ -25,28 +25,12 @@ permissions:
   contents: read
 
 jobs:
-  published-version:
-    name: Check CLI publication
-    runs-on: ubuntu-latest
-    outputs:
-      available: ${{ steps.check.outputs.available }}
-      version: ${{ steps.check.outputs.version }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Check the exact default version on NuGet
-        id: check
-        shell: pwsh
-        run: ./tests/ActionSmoke/Check-PublishedVersion.ps1
-
   shared-props-package:
-    name: Shared props package (${{ matrix.os }}, ${{ matrix.framework }})
+    name: Shared props package (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        framework: [net8.0, net10.0]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
@@ -54,18 +38,16 @@ jobs:
         with:
           persist-credentials: false
       # Fixed scanner source from dotnetarium/dotnetarium#38. The composite
-      # jobs below separately exercise the default CLI after it is published.
+      # jobs below separately exercise the currently published CLI package.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: dotnetarium/dotnetarium
-          ref: 37e7849668f8f5bc7b8695b08930ea1de12e17e6
+          ref: 0765701c6b1cbe7c4fb54020fc05fe630e920da4
           path: .scanner-source
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: 10.0.x
       - name: Pack fixed scanner and exercise Action scripts
         shell: pwsh
         run: |
@@ -74,11 +56,9 @@ jobs:
           $packages = Join-Path $env:RUNNER_TEMP 'scanner-packages'
           dotnet pack "$source/Dotnetarium.Tool/Dotnetarium.Tool.csproj" -c Release -p:RunAnalyzers=false -o $packages
           if ($LASTEXITCODE -ne 0) { throw 'Scanner package build failed.' }
-          ./tests/ActionSmoke/Test.ps1 -Framework '${{ matrix.framework }}' -ToolPackage (Get-ChildItem "$packages/dotnetarium.*.nupkg" | Select-Object -First 1).FullName
+          ./tests/ActionSmoke/Test.ps1 -ToolPackage (Get-ChildItem "$packages/dotnetarium.*.nupkg" | Select-Object -First 1).FullName
 
   composite:
-    needs: published-version
-    if: needs.published-version.outputs.available == 'true'
     name: Composite (${{ matrix.os }}, ${{ matrix.framework }})
     strategy:
       fail-fast: false
@@ -170,8 +150,6 @@ jobs:
           retention-days: 7
 
   reusable:
-    needs: published-version
-    if: needs.published-version.outputs.available == 'true'
     name: Reusable workflow and SARIF upload
     permissions:
       contents: read
