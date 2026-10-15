@@ -1,4 +1,4 @@
-param([string]$ToolPackage)
+param([string]$ToolPackage, [ValidateSet('net8.0', 'net10.0')][string]$Framework = 'net10.0')
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $Published = [string]::IsNullOrEmpty($ToolPackage)
@@ -23,8 +23,10 @@ try {
     $env:DNA_UPLOAD = 'false'
     $env:DNA_CONFIG = ''
     $env:DNA_CONFIGURATION = 'Release'
-    $env:DNA_FRAMEWORK = 'net10.0'
+    $env:DNA_FRAMEWORK = $Framework
     $env:DNA_SARIF = 'reports/results.sarif'
+    # The active .NET 10 template only offers net10.0. Its TFM is removed below;
+    # the shared props select the framework actually restored and scanned.
     & dotnet new classlib -o (Join-Path $scratch 'App') --framework net10.0 --no-restore | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'Could not create Action fixture.' }
     # Exercise the default loader with inherited framework selection, as used
@@ -33,18 +35,18 @@ try {
     [xml]$fixtureXml = Get-Content -LiteralPath $fixtureProject -Raw
     $frameworkNode = $fixtureXml.SelectSingleNode('/Project/PropertyGroup/TargetFramework')
     $frameworkNode.ParentNode.RemoveChild($frameworkNode) | Out-Null
+    $references = $fixtureXml.CreateElement('ItemGroup')
+    $reference = $fixtureXml.CreateElement('FrameworkReference')
+    $reference.SetAttribute('Include', 'Microsoft.AspNetCore.App')
+    $references.AppendChild($reference) | Out-Null
+    $fixtureXml.DocumentElement.AppendChild($references) | Out-Null
     $fixtureXml.Save($fixtureProject)
     @'
 <Project><PropertyGroup>
   <TargetFramework Condition="'$(MSBuildProjectName)' != 'LANCommander.SDK' and '$(MSBuildProjectName)' != 'LANCommander.SDK.SourceGenerators' and '$(MSBuildProjectName)' != 'LANCommander.Steam'">net10.0</TargetFramework>
 </PropertyGroup></Project>
-'@ | Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props')
-    @'
-using System.Security.Cryptography;
-public static class UnsafeCrypto {
-    public static void Run() { using var aes = Aes.Create(); aes.Mode = CipherMode.ECB; }
-}
-'@ | Set-Content -LiteralPath (Join-Path $scratch 'App/Class1.cs')
+'@.Replace('net10.0', $Framework) | Set-Content -LiteralPath (Join-Path $scratch 'Directory.Build.props')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Fixture/Examples.cs') -Destination (Join-Path $scratch 'App/Class1.cs')
     & "$root/scripts/Prepare.ps1"
     $outputs = @{}
     foreach ($line in Get-Content -LiteralPath $env:GITHUB_OUTPUT) {
@@ -75,7 +77,18 @@ public static class UnsafeCrypto {
         & "$root/scripts/Scan.ps1"
     } finally { Pop-Location }
     $report = Get-Content -LiteralPath $env:DNA_SARIF -Raw | ConvertFrom-Json
-    if (@($report.runs[0].results | Where-Object ruleId -ne 'DNA9000').Count -lt 1) { throw 'Missing crypto finding.' }
+    function AssertFindings($Run, [string]$Mode) {
+        $properties = $Run.invocations[0].properties
+        if ($properties.'dotnetarium.loadingMode' -ne $Mode -or $properties.'dotnetarium.inputStatus' -ne 'available') {
+            throw "Wrong loader or degraded fixture input: $Mode"
+        }
+        foreach ($rule in @('DNA0003', 'DNA0014')) {
+            if ($rule -notin @($Run.results.ruleId)) { throw "Missing $rule in $Mode scan." }
+        }
+        $xss = $Run.results | Where-Object ruleId -eq 'DNA0003' | Select-Object -First 1
+        if (-not $xss.codeFlows) { throw "Missing XSS source-to-sink flow in $Mode scan." }
+    }
+    AssertFindings $report.runs[0] 'no-build'
     $outputText = Get-Content -LiteralPath $env:GITHUB_OUTPUT -Raw
     if ($outputText -notmatch 'exit-code=0' -or $outputText -notmatch 'sarif-ready=true') { throw 'Findings incorrectly failed the Action.' }
     if ((Get-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Raw) -notmatch 'Dotnetarium scan completed') { throw 'Missing summary.' }
@@ -83,10 +96,7 @@ public static class UnsafeCrypto {
     $env:DNA_SARIF = Join-Path $scratch 'project.sarif'
     & "$root/scripts/Scan.ps1"
     $projectReport = Get-Content -LiteralPath $env:DNA_SARIF -Raw | ConvertFrom-Json
-    if ($projectReport.runs[0].invocations[0].properties.'dotnetarium.loadingMode' -ne 'project' -or
-        @($projectReport.runs[0].results | Where-Object ruleId -ne 'DNA9000').Count -lt 1) {
-        throw 'Explicit project-mode scan lost its finding or used the wrong loader.'
-    }
+    AssertFindings $projectReport.runs[0] 'project'
     $env:DNA_PROJECT = 'false'
     # Unusable project input must preserve a failed invocation for upload before
     # the composite final step fails the job.

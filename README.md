@@ -141,6 +141,11 @@ including both loaders, prepared dependencies, outputs, data flows and execution
 failure handling. Its fixture deliberately contains XSS and ECB findings.
 Normal PR runs retain SARIF as artifacts without publishing fixture alerts.
 
+Staged package checks run on both platforms and frameworks before a CLI release.
+The complete composite and reusable-workflow checks run once the exact default
+version is available on NuGet. Before publication, CI reports those checks as
+pending publication; dispatch the workflow again after publishing to run them.
+
 To test ingestion, run that workflow manually with `upload-fixture-sarif`
 enabled. This creates real test alerts and GitHub's native security check may
 fail because of those deliberate findings, even when the Action job succeeds.
@@ -157,8 +162,9 @@ published CLI. Use `-ToolPackage <path>` to test a local scanner package instead
 Hosted CI exercises the complete Action on Windows/Linux and .NET 8/10.
 
 Action versions are independent of scanner versions. Each release pins its
-default CLI version and dependencies. Publish an Action release only after CI
-passes, and document changes to the default CLI version or public inputs.
+default CLI version and dependencies. Publish an Action release only after the
+published-package integration jobs pass, and document changes to the default
+CLI version or public inputs.
 
 For GitHub Marketplace, publish a release with **Publish this Action to the
 GitHub Marketplace** selected. The organization owner must first accept the
