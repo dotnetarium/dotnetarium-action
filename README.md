@@ -1,18 +1,17 @@
 # Dotnetarium C# Security Scan
 
-Scan C# projects targeting .NET 8 or .NET 10 without building. Upload SARIF to
-GitHub code scanning for security alerts, data-flow paths and PR annotations.
+Bring C# security findings into the place where your team already reviews code. The Dotnetarium Action runs our [open-source .NET scanner](https://github.com/dotnetarium/dotnetarium) in GitHub Actions, using the same rules and taint analysis as the command-line tool and NuGet analyzer. It follows untrusted data through your code and checks for injection, unsafe file access, exposed credentials and other security risks, with support for modern .NET frameworks and libraries.
+
+Point it at a solution or project, and let it handle SDK setup, dependency restore, scanning and SARIF upload—or fit it into a CI job you've already prepared. Scanning uses no-build mode by default, with project mode available when you need MSBuild evaluation. Findings appear in GitHub code scanning with code locations and available data-flow paths, so reviewers can investigate the problem and understand why it matters. You get the scanner's C# security coverage with results your team can work through together.
 
 | Setup | Use it when | What it handles |
 | --- | --- | --- |
 | [Standalone workflow](#standalone-scan) | Adding a separate security job | Checkout, SDKs, restore, scan and upload |
 | [Action in existing CI](#existing-ci-or-private-feeds) | Reusing a prepared workspace or private-feed setup | Scan and upload; SDK setup and restore are optional |
 
-The Action wraps the global tool and uses the same rules and taint engine.
-The Action implementation, tests and reusable workflow live in this repository.
-The scanner and NuGet analyzer are maintained in
-[dotnetarium/dotnetarium](https://github.com/dotnetarium/dotnetarium), which also
-documents rule and framework coverage.
+See the scanner's [rule and framework coverage](https://github.com/dotnetarium/dotnetarium#what-it-checks)
+for the supported patterns. This repository contains the Action, its tests and
+the reusable workflow.
 
 The Action defaults to CLI 2.7.1. The examples pin tested commits;
 update these pins deliberately when adopting a newer integration.
