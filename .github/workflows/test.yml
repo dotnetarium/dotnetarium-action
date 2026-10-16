@@ -25,6 +25,39 @@ permissions:
   contents: read
 
 jobs:
+  shared-props-package:
+    name: Shared props package (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Scanner source includes the CLI analysis-profile override. The composite
+      # jobs below separately exercise the currently published CLI package.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: dotnetarium/dotnetarium
+          ref: 1efe8c0495373ee3fffe621e63b4de55968bf7f1
+          path: .scanner-source
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Pack fixed scanner and exercise Action scripts
+        shell: pwsh
+        run: |
+          $source = Join-Path $env:RUNNER_TEMP 'scanner-source'
+          Copy-Item .scanner-source $source -Recurse
+          $packages = Join-Path $env:RUNNER_TEMP 'scanner-packages'
+          dotnet pack "$source/Dotnetarium.Tool/Dotnetarium.Tool.csproj" -c Release -p:RunAnalyzers=false -o $packages
+          if ($LASTEXITCODE -ne 0) { throw 'Scanner package build failed.' }
+          ./tests/ActionSmoke/Test.ps1 -ToolPackage (Get-ChildItem "$packages/dotnetarium.*.nupkg" | Select-Object -First 1).FullName
+
   composite:
     name: Composite (${{ matrix.os }}, ${{ matrix.framework }})
     strategy:
@@ -47,6 +80,9 @@ jobs:
           configuration: Release
           sarif-file: action-default.sarif
           upload-sarif: 'false'
+          upload-artifact: 'true'
+          artifact-name: direct-${{ matrix.os }}-${{ matrix.framework }}
+          artifact-retention-days: '0'
       - name: Project loading with prepared SDKs and dependencies
         id: project
         uses: ./
@@ -99,6 +135,15 @@ jobs:
           restore: 'false'
           sarif-file: action-failed.sarif
           upload-sarif: 'false'
+          upload-artifact: 'true'
+          artifact-name: failed-${{ matrix.os }}-${{ matrix.framework }}
+          artifact-retention-days: '1'
+      - name: Download retained failure report
+        if: ${{ !cancelled() && steps.broken.outcome != 'skipped' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: failed-${{ matrix.os }}-${{ matrix.framework }}
+          path: retained-failure
       - name: Check execution failure is propagated
         if: ${{ !cancelled() && steps.broken.outcome != 'skipped' }}
         shell: pwsh
@@ -108,6 +153,8 @@ jobs:
           if ($env:BROKEN_OUTCOME -ne 'failure') { throw 'Execution failure did not fail the composite.' }
           $report = Get-Content -LiteralPath action-failed.sarif -Raw | ConvertFrom-Json
           if ($report.runs[0].invocations[0].executionSuccessful) { throw 'Failure report incorrectly claims success.' }
+          $retained = Get-Content -LiteralPath retained-failure/action-failed.sarif -Raw | ConvertFrom-Json
+          if ($retained.runs[0].invocations[0].executionSuccessful) { throw 'Artifact did not preserve the failed invocation.' }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}
         with:
@@ -128,4 +175,39 @@ jobs:
       framework: net10.0
       configuration: Release
       category: dotnetarium-action-integration
+      timeout-minutes: 12
+      artifact-retention-days: 1
+      respect-editorconfig: true
+      config-include: |
+        **/*.json
+        **/*.yml
+      config-exclude: |
+        **/ignored/**
       upload-sarif: ${{ github.event_name == 'workflow_dispatch' && inputs.upload-fixture-sarif }}
+
+  reusable-report:
+    name: Reusable report and outputs
+    needs: reusable
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: dotnetarium-sarif
+      - name: Compare public outputs with retained report
+        shell: pwsh
+        env:
+          FINDINGS: ${{ needs.reusable.outputs.findings }}
+          INPUT_STATUS: ${{ needs.reusable.outputs.input-status }}
+          ANALYSIS_STATUS: ${{ needs.reusable.outputs.analysis-status }}
+        run: |
+          $run = (Get-Content dotnetarium.sarif -Raw | ConvertFrom-Json).runs[0]
+          $count = @($run.results | Where-Object ruleId -ne 'DNA9000').Count
+          if ($count -lt 2 -or $env:FINDINGS -ne [string]$count) { throw 'Reusable finding output does not match SARIF.' }
+          $properties = $run.invocations[0].properties
+          if ($env:INPUT_STATUS -ne 'available' -or $env:INPUT_STATUS -ne $properties.'dotnetarium.inputStatus') {
+            throw 'Reusable workflow lost input status.'
+          }
+          if (-not $env:ANALYSIS_STATUS -or $env:ANALYSIS_STATUS -ne $properties.'dotnetarium.analysisStatus') {
+            throw 'Reusable workflow lost analysis status.'
+          }

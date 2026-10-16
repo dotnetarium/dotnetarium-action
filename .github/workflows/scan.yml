@@ -9,10 +9,25 @@ on:
         type: string
       version:
         description: Exact stable CLI version.
-        default: '2.7.0'
+        default: '2.7.2'
         type: string
       config:
         description: Optional repository-relative JSON configuration path.
+        default: ''
+        type: string
+      analysis-profile:
+        description: Optional fast, full or max override; requires a compatible CLI release.
+        default: ''
+        type: string
+      respect-editorconfig:
+        default: false
+        type: boolean
+      config-include:
+        description: Newline-separated credential/config-file include globs.
+        default: ''
+        type: string
+      config-exclude:
+        description: Newline-separated credential/config-file exclude globs.
         default: ''
         type: string
       configuration:
@@ -36,16 +51,37 @@ on:
       runner:
         default: ubuntu-latest
         type: string
+      timeout-minutes:
+        description: Maximum job duration; must fit the runner's supported timeout.
+        default: 20
+        type: number
       upload-sarif:
         default: true
         type: boolean
+      upload-artifact:
+        default: true
+        type: boolean
+      artifact-retention-days:
+        description: SARIF retention in days; 0 inherits repository policy.
+        default: 14
+        type: number
       category:
         default: dotnetarium
+        type: string
+      artifact-name:
+        description: Unique SARIF artifact name when calling this workflow more than once.
+        default: dotnetarium-sarif
         type: string
     outputs:
       findings:
         description: Total security findings; this is not a new-alert count.
         value: ${{ jobs.scan.outputs.findings }}
+      input-status:
+        description: Input status reported by the CLI.
+        value: ${{ jobs.scan.outputs.input-status }}
+      analysis-status:
+        description: Analysis status reported by the CLI.
+        value: ${{ jobs.scan.outputs.analysis-status }}
 
 permissions:
   contents: read
@@ -55,20 +91,26 @@ permissions:
 jobs:
   scan:
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 20
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     outputs:
       findings: ${{ steps.scan.outputs.findings }}
+      input-status: ${{ steps.scan.outputs.input-status }}
+      analysis-status: ${{ steps.scan.outputs.analysis-status }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Scan and upload
         id: scan
-        uses: dotnetarium/dotnetarium-action@e62c3ec189cf1a0c9aac1a7b7becd5d432699857
+        uses: dotnetarium/dotnetarium-action@5ed964d1d7a35cc898b3d746d02928399d4ed020
         with:
           target: ${{ inputs.target }}
           version: ${{ inputs.version }}
           config: ${{ inputs.config }}
+          analysis-profile: ${{ inputs.analysis-profile }}
+          respect-editorconfig: ${{ inputs.respect-editorconfig }}
+          config-include: ${{ inputs.config-include }}
+          config-exclude: ${{ inputs.config-exclude }}
           configuration: ${{ inputs.configuration }}
           framework: ${{ inputs.framework }}
           project-mode: ${{ inputs.project-mode }}
@@ -76,3 +118,6 @@ jobs:
           dotnet-version: ${{ inputs.dotnet-version }}
           upload-sarif: ${{ inputs.upload-sarif }}
           category: ${{ inputs.category }}
+          upload-artifact: ${{ inputs.upload-artifact }}
+          artifact-name: ${{ inputs.artifact-name }}
+          artifact-retention-days: ${{ inputs.artifact-retention-days }}

@@ -9,7 +9,7 @@ inputs:
     required: true
   version:
     description: Exact stable CLI version, 2.7.0 or newer.
-    default: '2.7.0'
+    default: '2.7.2'
   setup-dotnet:
     description: Install SDKs; disable when the job already prepared them.
     default: 'true'
@@ -26,6 +26,15 @@ inputs:
     default: 'false'
   config:
     description: Optional repository-relative dotnetarium.json path.
+  analysis-profile:
+    description: Optional fast, full or max override. Requires a CLI supporting --analysis-profile; omitted preserves repository configuration.
+  respect-editorconfig:
+    description: Honor configured rule severity and suppression.
+    default: 'false'
+  config-include:
+    description: Newline-separated globs limiting credential/config-file scanning, not C# project selection.
+  config-exclude:
+    description: Newline-separated globs excluding credential/config files; exclusions take precedence.
   configuration:
     description: Project configuration used for both restore and scanning.
     default: Debug
@@ -37,6 +46,15 @@ inputs:
   upload-sarif:
     description: Upload to GitHub code scanning; disable for artifact-only integrations.
     default: 'true'
+  upload-artifact:
+    description: Retain downloadable SARIF independently of GitHub code scanning upload.
+    default: 'false'
+  artifact-name:
+    description: Unique artifact name for this scan in the workflow run.
+    default: dotnetarium-sarif
+  artifact-retention-days:
+    description: SARIF artifact retention in days; 0 uses the repository policy.
+    default: '14'
   category:
     description: Stable code scanning category; use different categories for separate targets.
     default: dotnetarium
@@ -66,6 +84,11 @@ runs:
         DNA_RESTORE: ${{ inputs.restore }}
         DNA_PROJECT: ${{ inputs.project-mode }}
         DNA_UPLOAD: ${{ inputs.upload-sarif }}
+        DNA_ARTIFACT: ${{ inputs.upload-artifact }}
+        DNA_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        DNA_RETENTION: ${{ inputs.artifact-retention-days }}
+        DNA_PROFILE: ${{ inputs.analysis-profile }}
+        DNA_EDITORCONFIG: ${{ inputs.respect-editorconfig }}
         DNA_CONFIG: ${{ inputs.config }}
         DNA_CONFIGURATION: ${{ inputs.configuration }}
         DNA_FRAMEWORK: ${{ inputs.framework }}
@@ -101,6 +124,10 @@ runs:
         DNA_CONFIGURATION: ${{ inputs.configuration }}
         DNA_FRAMEWORK: ${{ inputs.framework }}
         DNA_PROJECT: ${{ inputs.project-mode }}
+        DNA_PROFILE: ${{ inputs.analysis-profile }}
+        DNA_EDITORCONFIG: ${{ inputs.respect-editorconfig }}
+        DNA_CONFIG_INCLUDE: ${{ inputs.config-include }}
+        DNA_CONFIG_EXCLUDE: ${{ inputs.config-exclude }}
       run: '& "$env:GITHUB_ACTION_PATH/scripts/Scan.ps1"'
     - name: Upload SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' && steps.scan.outputs.sarif-ready == 'true' }}
@@ -108,6 +135,14 @@ runs:
       with:
         sarif_file: ${{ steps.prepare.outputs.sarif-file }}
         category: ${{ inputs.category }}
+    - name: Retain SARIF report
+      if: ${{ !cancelled() && inputs.upload-artifact == 'true' && steps.scan.outputs.sarif-ready == 'true' }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.prepare.outputs.sarif-file }}
+        if-no-files-found: error
+        retention-days: ${{ inputs.artifact-retention-days }}
     - name: Report execution failure
       if: ${{ !cancelled() && steps.scan.outputs.exit-code != '' && steps.scan.outputs.exit-code != '0' }}
       shell: pwsh
