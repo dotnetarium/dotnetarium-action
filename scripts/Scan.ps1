@@ -24,6 +24,7 @@ foreach ($scope in @(@{ Value = $env:DNA_CONFIG_INCLUDE; Flag = '--config-includ
 $start = [Diagnostics.ProcessStartInfo]::new($executable)
 $start.UseShellExecute = $false
 $start.CreateNoWindow = $true
+$start.WorkingDirectory = (Get-Location).ProviderPath
 $start.RedirectStandardOutput = $true
 $start.RedirectStandardError = $true
 foreach ($argument in $scanArguments) { $start.ArgumentList.Add($argument) }
