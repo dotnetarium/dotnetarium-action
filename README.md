@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   security:
-    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@bfa1fc6003b123521bb2cfb310f02a45bb7ba654
+    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@fa3f018805ad92a08c939f981e48e5ef3fa51c72
     with:
       target: src/MyApp.slnx
       version: '2.7.2'
