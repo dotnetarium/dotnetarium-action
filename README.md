@@ -13,7 +13,7 @@ See the scanner's [rule and framework coverage](https://github.com/dotnetarium/d
 for the supported patterns. This repository contains the Action, its tests and
 the reusable workflow.
 
-The Action defaults to CLI 2.7.1. The examples pin tested commits;
+The Action defaults to CLI 2.7.2. The examples pin tested commits;
 update these pins deliberately when adopting a newer integration.
 It is tested on GitHub-hosted Ubuntu and Windows. Self-hosted runners need
 PowerShell (`pwsh`); SDK installation is enabled by default.
@@ -42,7 +42,7 @@ jobs:
     uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@1c91405dacdfd131fc1ef4a63579acbfd6ab9d6a
     with:
       target: src/MyApp.slnx
-      version: '2.7.1'
+      version: '2.7.2'
 ```
 
 This installs .NET 8 and 10 SDKs, restores the target and scans in the default
@@ -61,7 +61,7 @@ authentication and restore/build steps **in the same job**:
 
 ```yaml
 - name: Scan prepared workspace
-  uses: dotnetarium/dotnetarium-action@bac8203279588af9c35dc71956249151ccd8cc36
+  uses: dotnetarium/dotnetarium-action@f52891f299c3eeb7bcfb8600d7853d90043d8b8f
   with:
     target: src/MyApp.slnx
     setup-dotnet: 'false'
@@ -86,7 +86,7 @@ Restore failure fails preparation rather than silently treating it as success.
 | Input | Default | Purpose |
 | --- | --- | --- |
 | `target` | Required | Repository-relative `.csproj`, `.sln` or `.slnx` |
-| `version` | `2.7.1` | Exact stable CLI release; 2.7.0 or newer |
+| `version` | `2.7.2` | Exact stable CLI release; 2.7.0 or newer |
 | `setup-dotnet` | `true` | Composite only: install SDKs; disable after existing setup |
 | `dotnet-version` | `8.0.x` and `10.0.x` | SDK versions; include .NET 10 for the tool and required project SDKs/reference packs |
 | `restore` | `true` | Restore before scanning; disable for an already prepared workspace |
@@ -147,17 +147,16 @@ without replacing custom models or explicit numeric limits. Profiles change
 analysis effort, not the security rule catalog. The Action never rewrites your
 configuration file.
 
-CLI 2.7.1 supports EditorConfig and config-file globs, but does not support the
-new `--analysis-profile` option. Profile selection requires a newer compatible
-CLI release: set `version` to that exact release when available. Requesting a
-profile with an unsupported CLI fails clearly instead of silently ignoring it.
-Until then, select profiles through `dotnetarium.json` and omit the Action input.
+CLI 2.7.2 adds the `--analysis-profile` option. Requesting a profile with an older,
+unsupported CLI fails clearly instead of silently ignoring it. When pinning an
+older CLI, select profiles through `dotnetarium.json` and omit the Action input.
 
-For example, these inputs work with CLI 2.7.1:
+For example, these inputs work with CLI 2.7.2:
 
 ```yaml
 with:
   target: src/MyApp.slnx
+  analysis-profile: full
   respect-editorconfig: true
   config-include: |
     **/*.json

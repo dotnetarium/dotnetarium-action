@@ -9,7 +9,7 @@ on:
         type: string
       version:
         description: Exact stable CLI version.
-        default: '2.7.1'
+        default: '2.7.2'
         type: string
       config:
         description: Optional repository-relative JSON configuration path.
@@ -102,7 +102,7 @@ jobs:
           persist-credentials: false
       - name: Scan and upload
         id: scan
-        uses: dotnetarium/dotnetarium-action@bac8203279588af9c35dc71956249151ccd8cc36
+        uses: dotnetarium/dotnetarium-action@f52891f299c3eeb7bcfb8600d7853d90043d8b8f
         with:
           target: ${{ inputs.target }}
           version: ${{ inputs.version }}
