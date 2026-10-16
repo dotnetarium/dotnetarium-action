@@ -9,7 +9,7 @@ on:
         type: string
       version:
         description: Exact stable CLI version.
-        default: '2.7.2'
+        default: '2.7.3'
         type: string
       config:
         description: Optional repository-relative JSON configuration path.
