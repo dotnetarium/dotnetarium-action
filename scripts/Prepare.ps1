@@ -1,9 +1,20 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-foreach ($flag in 'DNA_SETUP', 'DNA_RESTORE', 'DNA_PROJECT', 'DNA_UPLOAD') {
+foreach ($flag in 'DNA_SETUP', 'DNA_RESTORE', 'DNA_PROJECT', 'DNA_UPLOAD', 'DNA_ARTIFACT', 'DNA_EDITORCONFIG') {
     if ([Environment]::GetEnvironmentVariable($flag) -cnotin @('true', 'false')) {
         throw "$flag must be true or false."
     }
+}
+if ($env:DNA_PROFILE -and $env:DNA_PROFILE -cnotin @('fast', 'full', 'max')) {
+    throw 'analysis-profile must be fast, full or max, or omitted.'
+}
+$retention = 0
+if ($env:DNA_RETENTION -notmatch '^\d+$' -or -not [int]::TryParse($env:DNA_RETENTION, [ref]$retention) -or $retention -gt 400) {
+    throw 'artifact-retention-days must be an integer from 0 to 400, within repository policy (public repositories: at most 90).'
+}
+if ($env:DNA_ARTIFACT -eq 'true' -and ([string]::IsNullOrWhiteSpace($env:DNA_ARTIFACT_NAME) -or
+    $env:DNA_ARTIFACT_NAME -match '[\x00-\x1f\x7f"<>:|*?\\/]')) {
+    throw 'artifact-name must be nonempty and must not contain control characters or "<>:|*?\\/.'
 }
 if ($env:DNA_VERSION -notmatch '^\d+\.\d+\.\d+$' -or [version]$env:DNA_VERSION -lt [version]'2.7.0') {
     throw 'version must be an exact stable release, 2.7.0 or newer.'

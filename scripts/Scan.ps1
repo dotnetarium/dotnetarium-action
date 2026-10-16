@@ -5,8 +5,38 @@ $scanArguments = @($env:DNA_TARGET, '--sarif', $env:DNA_SARIF, '--configuration'
 if ($env:DNA_CONFIG) { $scanArguments += @('--config', $env:DNA_CONFIG) }
 if ($env:DNA_FRAMEWORK) { $scanArguments += @('--framework', $env:DNA_FRAMEWORK) }
 if ($env:DNA_PROJECT -eq 'true') { $scanArguments += '-p' }
-& $executable @scanArguments
-$scanExit = $LASTEXITCODE
+if ($env:DNA_PROFILE) {
+    $helpText = & $executable --help
+    if ($LASTEXITCODE -ne 0 -or -not ($helpText -match '--analysis-profile\b')) {
+        throw 'analysis-profile requires a CLI release supporting --analysis-profile. Upgrade version or leave the input unset to preserve repository configuration.'
+    }
+    $scanArguments += @('--analysis-profile', $env:DNA_PROFILE)
+}
+if ($env:DNA_EDITORCONFIG -eq 'true') { $scanArguments += '--respect-editorconfig' }
+foreach ($scope in @(@{ Value = $env:DNA_CONFIG_INCLUDE; Flag = '--config-include' },
+    @{ Value = $env:DNA_CONFIG_EXCLUDE; Flag = '--config-exclude' })) {
+    foreach ($pattern in ($scope.Value -split '\r?\n')) {
+        if (-not [string]::IsNullOrWhiteSpace($pattern)) { $scanArguments += @($scope.Flag, $pattern.Trim()) }
+    }
+}
+# ArgumentList preserves literal globs on Unix, where PowerShell can expand
+# wildcard arguments before invoking a native executable. No shell is involved.
+$start = [Diagnostics.ProcessStartInfo]::new($executable)
+$start.UseShellExecute = $false
+$start.CreateNoWindow = $true
+$start.RedirectStandardOutput = $true
+$start.RedirectStandardError = $true
+foreach ($argument in $scanArguments) { $start.ArgumentList.Add($argument) }
+$process = [Diagnostics.Process]::Start($start)
+try {
+    # Drain stderr asynchronously so a full error pipe cannot block stdout.
+    $stderr = $process.StandardError.ReadToEndAsync()
+    while ($null -ne ($line = $process.StandardOutput.ReadLine())) { Write-Host $line }
+    $process.WaitForExit()
+    $errorText = $stderr.GetAwaiter().GetResult()
+    if ($errorText) { Write-Host $errorText }
+    $scanExit = $process.ExitCode
+} finally { $process.Dispose() }
 "exit-code=$scanExit" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8
 if (-not (Test-Path -LiteralPath $env:DNA_SARIF -PathType Leaf)) {
     throw "The CLI exited with $scanExit without producing SARIF."

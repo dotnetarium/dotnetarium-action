@@ -7,7 +7,9 @@ $scratch = Join-Path ([IO.Path]::GetTempPath()) ('dotnetarium-action-smoke-' + [
 New-Item -ItemType Directory -Path $scratch | Out-Null
 $variables = @('GITHUB_WORKSPACE', 'RUNNER_TEMP', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY',
     'DNA_TARGET', 'DNA_VERSION', 'DNA_SETUP', 'DNA_RESTORE', 'DNA_PROJECT', 'DNA_UPLOAD',
-    'DNA_CONFIG', 'DNA_CONFIGURATION', 'DNA_FRAMEWORK', 'DNA_SARIF', 'DNA_TOOL')
+    'DNA_CONFIG', 'DNA_CONFIGURATION', 'DNA_FRAMEWORK', 'DNA_SARIF', 'DNA_TOOL',
+    'DNA_PROFILE', 'DNA_EDITORCONFIG', 'DNA_CONFIG_INCLUDE', 'DNA_CONFIG_EXCLUDE',
+    'DNA_ARTIFACT', 'DNA_ARTIFACT_NAME', 'DNA_RETENTION')
 $saved = @{}
 foreach ($name in $variables) { $saved[$name] = [Environment]::GetEnvironmentVariable($name) }
 try {
@@ -21,6 +23,13 @@ try {
     $env:DNA_RESTORE = 'true'
     $env:DNA_PROJECT = 'false'
     $env:DNA_UPLOAD = 'false'
+    $env:DNA_ARTIFACT = 'false'
+    $env:DNA_ARTIFACT_NAME = 'scan-report'
+    $env:DNA_RETENTION = '14'
+    $env:DNA_PROFILE = ''
+    $env:DNA_EDITORCONFIG = 'false'
+    $env:DNA_CONFIG_INCLUDE = ''
+    $env:DNA_CONFIG_EXCLUDE = ''
     $env:DNA_CONFIG = ''
     $env:DNA_CONFIGURATION = 'Release'
     $env:DNA_FRAMEWORK = 'net10.0'
@@ -88,6 +97,57 @@ public static class UnsafeCrypto {
         throw 'Explicit project-mode scan lost its finding or used the wrong loader.'
     }
     $env:DNA_PROJECT = 'false'
+    # Scope globs must arrive literally, including on Unix and with spaces.
+    $credentialDirectory = Join-Path $scratch 'App/nested inputs'
+    New-Item -ItemType Directory -Path $credentialDirectory | Out-Null
+    $alphabet = 'aB7cD8eF9gH0jK1mN2pQ3rS4tU5vW6xYz'
+    $body = -join (0..29 | ForEach-Object { $alphabet[$_ % $alphabet.Length] })
+    $credentialFixture = '{"token":"ghp_' + $body + '2M5jQM"}'
+    foreach ($file in 'selected.json', 'excluded.json') {
+        $credentialFixture | Set-Content -LiteralPath (Join-Path $credentialDirectory $file)
+    }
+    @'
+root = true
+[*.cs]
+dotnet_diagnostic.DNA0014.severity = none
+'@ | Set-Content -LiteralPath (Join-Path $scratch 'App/.editorconfig')
+    $env:DNA_EDITORCONFIG = 'true'
+    $env:DNA_CONFIG_INCLUDE = "**/nested inputs/*.json`n`n**/*.yml"
+    $env:DNA_CONFIG_EXCLUDE = "**/excluded.json`n"
+    $env:DNA_SARIF = Join-Path $scratch 'scoped.sarif'
+    & "$root/scripts/Scan.ps1"
+    $scopedRun = (Get-Content -LiteralPath $env:DNA_SARIF -Raw | ConvertFrom-Json).runs[0]
+    if (@($scopedRun.results | Where-Object ruleId -eq 'DNA0022').Count -ne 1 -or
+        @($scopedRun.results | Where-Object ruleId -eq 'DNA0014').Count -ne 0) {
+        throw 'Config-file globs or explicit EditorConfig suppression were not honored.'
+    }
+    $env:DNA_EDITORCONFIG = 'false'
+    $env:DNA_CONFIG_INCLUDE = ''
+    $env:DNA_CONFIG_EXCLUDE = ''
+    $profileConfig = Join-Path $scratch 'App/dotnetarium.json'
+    $profileJson = '{"Version":"2.0","AnalysisProfile":"max","MaxTaintAnalysisWork":1234,"ThreatModels":["local"]}'
+    $profileJson | Set-Content -LiteralPath $profileConfig
+    if (-not $Published) {
+        foreach ($profile in 'fast', 'full', 'max') {
+            $env:DNA_PROFILE = $profile
+            $env:DNA_SARIF = Join-Path $scratch "$profile.sarif"
+            & "$root/scripts/Scan.ps1"
+            $settings = (Get-Content -LiteralPath $env:DNA_SARIF -Raw | ConvertFrom-Json).runs[0].invocations[0].properties.'dotnetarium.analysisSettings'[0]
+            if ($settings.profile -ne $profile -or $settings.workBudget -ne 1234 -or
+                @($settings.threatModels) -notcontains 'local') { throw 'Profile override replaced repository settings.' }
+        }
+        if ((Get-Content -LiteralPath $profileConfig -Raw).Trim() -ne $profileJson) { throw 'Action modified repository configuration.' }
+    } else {
+        $env:DNA_PROFILE = 'fast'
+        $env:DNA_SARIF = Join-Path $scratch 'unsupported-profile.sarif'
+        $unsupportedRejected = $false
+        try { & "$root/scripts/Scan.ps1" } catch {
+            if ($_.Exception.Message -notmatch 'requires a CLI release') { throw }
+            $unsupportedRejected = $true
+        }
+        if (-not $unsupportedRejected) { throw 'Unsupported profile override was silently accepted.' }
+    }
+    $env:DNA_PROFILE = ''
     # Unusable project input must preserve a failed invocation for upload before
     # the composite final step fails the job.
     $env:DNA_TARGET = Join-Path $scratch 'broken.csproj'
@@ -102,6 +162,17 @@ public static class UnsafeCrypto {
     $rejected = $false
     try { & "$root/scripts/Prepare.ps1" } catch { $rejected = $true }
     if (-not $rejected) { throw 'Out-of-workspace target was accepted.' }
+    $env:DNA_TARGET = 'App/App.csproj'
+    foreach ($invalid in @(@{ Name = 'DNA_RETENTION'; Value = '-1' },
+        @{ Name = 'DNA_RETENTION'; Value = '401' }, @{ Name = 'DNA_RETENTION'; Value = '1.5' },
+        @{ Name = 'DNA_PROFILE'; Value = 'unknown' }, @{ Name = 'DNA_EDITORCONFIG'; Value = 'yes' })) {
+        $before = [Environment]::GetEnvironmentVariable($invalid.Name)
+        [Environment]::SetEnvironmentVariable($invalid.Name, $invalid.Value)
+        $rejected = $false
+        try { & "$root/scripts/Prepare.ps1" } catch { $rejected = $true }
+        finally { [Environment]::SetEnvironmentVariable($invalid.Name, $before) }
+        if (-not $rejected) { throw "Invalid $($invalid.Name) was accepted." }
+    }
     Write-Host 'Action smoke passed: real CLI finding, SARIF statuses, deferred failure and input validation.'
 } finally {
     foreach ($name in $variables) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
