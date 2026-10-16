@@ -102,7 +102,7 @@ jobs:
           persist-credentials: false
       - name: Scan and upload
         id: scan
-        uses: dotnetarium/dotnetarium-action@8ba207d9ffe9077e88f57414d92cb50ba779cbd6
+        uses: dotnetarium/dotnetarium-action@bac8203279588af9c35dc71956249151ccd8cc36
         with:
           target: ${{ inputs.target }}
           version: ${{ inputs.version }}

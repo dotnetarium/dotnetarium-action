@@ -61,7 +61,7 @@ authentication and restore/build steps **in the same job**:
 
 ```yaml
 - name: Scan prepared workspace
-  uses: dotnetarium/dotnetarium-action@8ba207d9ffe9077e88f57414d92cb50ba779cbd6
+  uses: dotnetarium/dotnetarium-action@bac8203279588af9c35dc71956249151ccd8cc36
   with:
     target: src/MyApp.slnx
     setup-dotnet: 'false'
