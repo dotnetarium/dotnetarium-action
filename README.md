@@ -39,9 +39,10 @@ permissions:
 
 jobs:
   security:
-    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@396cf8081431186aea3d018aed3366483243f48a
+    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@2488f6baf07ab414bac3b0ae4ed737ff2d4e25f2
     with:
       target: src/MyApp.slnx
+      version: '2.7.1'
 ```
 
 This installs .NET 8 and 10 SDKs, restores the target and scans in the default
@@ -60,7 +61,7 @@ authentication and restore/build steps **in the same job**:
 
 ```yaml
 - name: Scan prepared workspace
-  uses: dotnetarium/dotnetarium-action@e62c3ec189cf1a0c9aac1a7b7becd5d432699857
+  uses: dotnetarium/dotnetarium-action@de145b7ae5b4bea1cca0edef7eb184fed486ed56
   with:
     target: src/MyApp.slnx
     setup-dotnet: 'false'
@@ -97,10 +98,14 @@ Restore failure fails preparation rather than silently treating it as success.
 | `upload-sarif` | `true` | Disable for an artifact-only workflow |
 | `category` | `dotnetarium` | Stable category; use distinct values for multiple targets |
 | `runner` | `ubuntu-latest` | Reusable workflow only: runner label |
+| `artifact-name` | `dotnetarium-sarif` | Reusable workflow only: use a unique name for each call in the same run |
 
 The composite exposes `sarif-file`, `findings`, `input-status` and
-`analysis-status`. The reusable workflow exposes `findings`. For multiple scans
-in one workspace, use distinct SARIF paths and categories. Existing output files
+`analysis-status`. The reusable workflow exposes the same counts and statuses
+and retains SARIF as an artifact for 14 days, including after an upload failure.
+For multiple scans
+in one workspace, use distinct SARIF paths and categories. For multiple reusable
+workflow calls, also use distinct artifact names. Existing output files
 are rejected to prevent overwriting files or uploading stale results.
 
 ## Results and checks
