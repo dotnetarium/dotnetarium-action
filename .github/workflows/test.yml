@@ -162,3 +162,30 @@ jobs:
       configuration: Release
       category: dotnetarium-action-integration
       upload-sarif: ${{ github.event_name == 'workflow_dispatch' && inputs.upload-fixture-sarif }}
+
+  reusable-report:
+    name: Reusable report and outputs
+    needs: reusable
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: dotnetarium-sarif
+      - name: Compare public outputs with retained report
+        shell: pwsh
+        env:
+          FINDINGS: ${{ needs.reusable.outputs.findings }}
+          INPUT_STATUS: ${{ needs.reusable.outputs.input-status }}
+          ANALYSIS_STATUS: ${{ needs.reusable.outputs.analysis-status }}
+        run: |
+          $run = (Get-Content dotnetarium.sarif -Raw | ConvertFrom-Json).runs[0]
+          $count = @($run.results | Where-Object ruleId -ne 'DNA9000').Count
+          if ($count -lt 2 -or $env:FINDINGS -ne [string]$count) { throw 'Reusable finding output does not match SARIF.' }
+          $properties = $run.invocations[0].properties
+          if ($env:INPUT_STATUS -ne 'available' -or $env:INPUT_STATUS -ne $properties.'dotnetarium.inputStatus') {
+            throw 'Reusable workflow lost input status.'
+          }
+          if (-not $env:ANALYSIS_STATUS -or $env:ANALYSIS_STATUS -ne $properties.'dotnetarium.analysisStatus') {
+            throw 'Reusable workflow lost analysis status.'
+          }

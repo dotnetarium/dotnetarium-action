@@ -42,10 +42,20 @@ on:
       category:
         default: dotnetarium
         type: string
+      artifact-name:
+        description: Unique SARIF artifact name when calling this workflow more than once.
+        default: dotnetarium-sarif
+        type: string
     outputs:
       findings:
         description: Total security findings; this is not a new-alert count.
         value: ${{ jobs.scan.outputs.findings }}
+      input-status:
+        description: Input status reported by the CLI.
+        value: ${{ jobs.scan.outputs.input-status }}
+      analysis-status:
+        description: Analysis status reported by the CLI.
+        value: ${{ jobs.scan.outputs.analysis-status }}
 
 permissions:
   contents: read
@@ -58,13 +68,15 @@ jobs:
     timeout-minutes: 20
     outputs:
       findings: ${{ steps.scan.outputs.findings }}
+      input-status: ${{ steps.scan.outputs.input-status }}
+      analysis-status: ${{ steps.scan.outputs.analysis-status }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Scan and upload
         id: scan
-        uses: dotnetarium/dotnetarium-action@e62c3ec189cf1a0c9aac1a7b7becd5d432699857
+        uses: dotnetarium/dotnetarium-action@de145b7ae5b4bea1cca0edef7eb184fed486ed56
         with:
           target: ${{ inputs.target }}
           version: ${{ inputs.version }}
@@ -76,3 +88,11 @@ jobs:
           dotnet-version: ${{ inputs.dotnet-version }}
           upload-sarif: ${{ inputs.upload-sarif }}
           category: ${{ inputs.category }}
+      - name: Retain SARIF report
+        if: ${{ !cancelled() && steps.scan.outputs.sarif-file != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ steps.scan.outputs.sarif-file }}
+          if-no-files-found: warn
+          retention-days: 14
