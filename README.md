@@ -118,8 +118,10 @@ are rejected to prevent overwriting files or uploading stale results.
 ## Results and checks
 
 - SARIF upload populates GitHub code scanning; it does not run CodeQL analysis.
-- A job summary reports total findings, severity counts, input quality and
-  analysis limits. Counts include existing findings, not only new alerts.
+- A job summary reports total findings, severity counts, analyzed projects,
+  profiles and scanner time. Counts include existing findings, not only new alerts.
+  Input warnings and analysis-limit details remain in the scan log and SARIF;
+  input/analysis status outputs remain available for automation.
 - Findings and normal analysis limits do not fail the Action. Use GitHub code
   scanning protection rules to gate new alerts at the desired severity.
 - Scanner execution failures fail the job. When the CLI produces a failure

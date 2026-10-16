@@ -28,6 +28,7 @@ $start.WorkingDirectory = (Get-Location).ProviderPath
 $start.RedirectStandardOutput = $true
 $start.RedirectStandardError = $true
 foreach ($argument in $scanArguments) { $start.ArgumentList.Add($argument) }
+$scanTimer = [Diagnostics.Stopwatch]::StartNew()
 $process = [Diagnostics.Process]::Start($start)
 try {
     # Drain stderr asynchronously so a full error pipe cannot block stdout.
@@ -37,7 +38,7 @@ try {
     $errorText = $stderr.GetAwaiter().GetResult()
     if ($errorText) { Write-Host $errorText }
     $scanExit = $process.ExitCode
-} finally { $process.Dispose() }
+} finally { $scanTimer.Stop(); $process.Dispose() }
 "exit-code=$scanExit" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8
 if (-not (Test-Path -LiteralPath $env:DNA_SARIF -PathType Leaf)) {
     throw "The CLI exited with $scanExit without producing SARIF."
@@ -67,10 +68,17 @@ foreach ($finding in $findings) {
     $severityCounts[$severity]++
 }
 $status = if ($scanExit -eq 0) { 'completed' } else { 'failed' }
+$projectCount = @($invocation.properties['dotnetarium.analyzedProjects'] | Where-Object { $_ }).Count
+$profiles = @($invocation.properties['dotnetarium.analysisSettings'] |
+    ForEach-Object { $_.profile } | Where-Object { $_ } | Sort-Object -Unique)
+$scanSeconds = $scanTimer.Elapsed.TotalSeconds.ToString('0.0', [Globalization.CultureInfo]::InvariantCulture)
+$scanDetails = "Projects analyzed: **$projectCount**"
+if ($profiles.Count -gt 0) { $scanDetails += " · Profile: **$($profiles -join ', ')**" }
+$scanDetails += " · Scan time: **$scanSeconds s**."
 @("## Dotnetarium scan $status", '',
   '| Findings | High / critical | Medium | Low | Other |', '| ---: | ---: | ---: | ---: | ---: |',
   "| $($findings.Count) | $($severityCounts.high) | $($severityCounts.medium) | $($severityCounts.low) | $($severityCounts.other) |", '',
-  "Inputs: **$inputStatus** · Analysis: **$analysisStatus**. Analysis limits are informational.", '',
+  $scanDetails, '',
   'When SARIF upload is enabled, findings and available paths appear in repository code scanning.') |
     Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 # Return normally so the composite can upload even a failed invocation's report.
