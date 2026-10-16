@@ -175,6 +175,14 @@ jobs:
       framework: net10.0
       configuration: Release
       category: dotnetarium-action-integration
+      timeout-minutes: 12
+      artifact-retention-days: 1
+      respect-editorconfig: true
+      config-include: |
+        **/*.json
+        **/*.yml
+      config-exclude: |
+        **/ignored/**
       upload-sarif: ${{ github.event_name == 'workflow_dispatch' && inputs.upload-fixture-sarif }}
 
   reusable-report:
