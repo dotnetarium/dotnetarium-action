@@ -15,6 +15,21 @@ on:
         description: Optional repository-relative JSON configuration path.
         default: ''
         type: string
+      analysis-profile:
+        description: Optional fast, full or max override; requires a compatible CLI release.
+        default: ''
+        type: string
+      respect-editorconfig:
+        default: false
+        type: boolean
+      config-include:
+        description: Newline-separated credential/config-file include globs.
+        default: ''
+        type: string
+      config-exclude:
+        description: Newline-separated credential/config-file exclude globs.
+        default: ''
+        type: string
       configuration:
         default: Debug
         type: string
@@ -36,9 +51,20 @@ on:
       runner:
         default: ubuntu-latest
         type: string
+      timeout-minutes:
+        description: Maximum job duration; must fit the runner's supported timeout.
+        default: 20
+        type: number
       upload-sarif:
         default: true
         type: boolean
+      upload-artifact:
+        default: true
+        type: boolean
+      artifact-retention-days:
+        description: SARIF retention in days; 0 inherits repository policy.
+        default: 14
+        type: number
       category:
         default: dotnetarium
         type: string
@@ -65,7 +91,7 @@ permissions:
 jobs:
   scan:
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 20
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     outputs:
       findings: ${{ steps.scan.outputs.findings }}
       input-status: ${{ steps.scan.outputs.input-status }}
@@ -76,11 +102,15 @@ jobs:
           persist-credentials: false
       - name: Scan and upload
         id: scan
-        uses: dotnetarium/dotnetarium-action@de145b7ae5b4bea1cca0edef7eb184fed486ed56
+        uses: dotnetarium/dotnetarium-action@8ba207d9ffe9077e88f57414d92cb50ba779cbd6
         with:
           target: ${{ inputs.target }}
           version: ${{ inputs.version }}
           config: ${{ inputs.config }}
+          analysis-profile: ${{ inputs.analysis-profile }}
+          respect-editorconfig: ${{ inputs.respect-editorconfig }}
+          config-include: ${{ inputs.config-include }}
+          config-exclude: ${{ inputs.config-exclude }}
           configuration: ${{ inputs.configuration }}
           framework: ${{ inputs.framework }}
           project-mode: ${{ inputs.project-mode }}
@@ -88,11 +118,6 @@ jobs:
           dotnet-version: ${{ inputs.dotnet-version }}
           upload-sarif: ${{ inputs.upload-sarif }}
           category: ${{ inputs.category }}
-      - name: Retain SARIF report
-        if: ${{ !cancelled() && steps.scan.outputs.sarif-file != '' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ inputs.artifact-name }}
-          path: ${{ steps.scan.outputs.sarif-file }}
-          if-no-files-found: warn
-          retention-days: 14
+          upload-artifact: ${{ inputs.upload-artifact }}
+          artifact-name: ${{ inputs.artifact-name }}
+          artifact-retention-days: ${{ inputs.artifact-retention-days }}
