@@ -1,4 +1,4 @@
-param([string]$ToolPackage, [string]$Version = '2.7.2')
+param([string]$ToolPackage, [string]$Version = '2.7.3')
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $Published = [string]::IsNullOrEmpty($ToolPackage)
