@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   security:
-    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@2488f6baf07ab414bac3b0ae4ed737ff2d4e25f2
+    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@dab6a6c5552d9a4f27eef93f99340bff4e45e998
     with:
       target: src/MyApp.slnx
       version: '2.7.1'
@@ -61,7 +61,7 @@ authentication and restore/build steps **in the same job**:
 
 ```yaml
 - name: Scan prepared workspace
-  uses: dotnetarium/dotnetarium-action@de145b7ae5b4bea1cca0edef7eb184fed486ed56
+  uses: dotnetarium/dotnetarium-action@8ba207d9ffe9077e88f57414d92cb50ba779cbd6
   with:
     target: src/MyApp.slnx
     setup-dotnet: 'false'
@@ -92,17 +92,24 @@ Restore failure fails preparation rather than silently treating it as success.
 | `restore` | `true` | Restore before scanning; disable for an already prepared workspace |
 | `project-mode` | `false` | Select `-p` design-time project loading |
 | `config` | Automatic discovery | Repository-relative JSON configuration |
+| `analysis-profile` | Repository configuration; otherwise CLI `full` | Optional `fast`, `full` or `max` override; requires a CLI supporting `--analysis-profile` |
+| `respect-editorconfig` | `false` | Honor configured rule severities and suppressions |
+| `config-include` | Unset | Newline-separated credential/config-file include globs; does not filter C# source |
+| `config-exclude` | Unset | Newline-separated credential/config-file exclude globs; exclusions take precedence |
 | `configuration` | `Debug` | Applied to restore and scan |
 | `framework` | CLI default | Select `net8.0` or `net10.0` for the root scan; restore retains the full project-reference graph |
 | `sarif-file` | `dotnetarium.sarif` | Composite only: fresh repository-relative output path |
 | `upload-sarif` | `true` | Disable for an artifact-only workflow |
+| `upload-artifact` | Composite: `false`; reusable: `true` | Retain downloadable SARIF independently of GHAS upload |
+| `artifact-retention-days` | `14` | Artifact retention; `0` inherits repository policy; subject to repository/organization limits |
 | `category` | `dotnetarium` | Stable category; use distinct values for multiple targets |
 | `runner` | `ubuntu-latest` | Reusable workflow only: runner label |
-| `artifact-name` | `dotnetarium-sarif` | Reusable workflow only: use a unique name for each call in the same run |
+| `timeout-minutes` | `20` | Reusable workflow only: job timeout within runner limits; composite callers configure their own job |
+| `artifact-name` | `dotnetarium-sarif` | Use a unique name for each artifact-producing scan in the same run |
 
 The composite exposes `sarif-file`, `findings`, `input-status` and
 `analysis-status`. The reusable workflow exposes the same counts and statuses
-and retains SARIF as an artifact for 14 days, including after an upload failure.
+and retains SARIF as an artifact for 14 days by default, including after an upload failure.
 For multiple scans
 in one workspace, use distinct SARIF paths and categories. For multiple reusable
 workflow calls, also use distinct artifact names. Existing output files
@@ -130,6 +137,48 @@ Public repositories support code scanning. Private organization repositories
 need GitHub Code Security enabled. Without it, set `upload-sarif: false`, retain
 the job summary and upload `steps.scan.outputs.sarif-file` using your artifact
 workflow. An App does not bypass that entitlement.
+
+## Analysis and report controls
+
+Use `config` for custom taint models, threat models and numeric depth/work limits.
+An omitted `analysis-profile` preserves each project's configured profile; the
+CLI otherwise defaults to `full`. An explicit profile overrides that selection
+without replacing custom models or explicit numeric limits. Profiles change
+analysis effort, not the security rule catalog. The Action never rewrites your
+configuration file.
+
+CLI 2.7.1 supports EditorConfig and config-file globs, but does not support the
+new `--analysis-profile` option. Profile selection requires a newer compatible
+CLI release: set `version` to that exact release when available. Requesting a
+profile with an unsupported CLI fails clearly instead of silently ignoring it.
+Until then, select profiles through `dotnetarium.json` and omit the Action input.
+
+For example, these inputs work with CLI 2.7.1:
+
+```yaml
+with:
+  target: src/MyApp.slnx
+  respect-editorconfig: true
+  config-include: |
+    **/*.json
+    .github/**/*.yml
+  config-exclude: |
+    **/fixtures/**
+  upload-artifact: true
+  artifact-retention-days: 7
+```
+
+Reusable workflow boolean inputs use YAML booleans; composite Action boolean
+inputs may be quoted strings. Config-file globs are passed literally and do not
+change C# project selection. Leave `respect-editorconfig` off to retain the CLI's
+default security-rule reporting policy.
+
+Artifact retention controls the downloadable SARIF file, not ingested GitHub
+code-scanning alerts. Set `upload-artifact: false` to disable artifact storage;
+set `upload-sarif: false` independently to disable GHAS upload. Public repositories
+support retention up to 90 days; private repositories up to 400, subject to
+organization/repository policy. `0` inherits that policy. Multiple scans need
+distinct artifact names and stable, distinct code-scanning categories.
 
 ## App onboarding later
 
