@@ -9,7 +9,7 @@ inputs:
     required: true
   version:
     description: Exact stable CLI version, 2.7.0 or newer.
-    default: '2.7.1'
+    default: '2.7.2'
   setup-dotnet:
     description: Install SDKs; disable when the job already prepared them.
     default: 'true'

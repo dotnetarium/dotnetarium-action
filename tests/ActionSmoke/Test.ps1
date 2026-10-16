@@ -1,4 +1,4 @@
-param([string]$ToolPackage)
+param([string]$ToolPackage, [string]$Version = '2.7.2')
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $Published = [string]::IsNullOrEmpty($ToolPackage)
@@ -18,7 +18,7 @@ try {
     $env:GITHUB_OUTPUT = Join-Path $scratch 'outputs.txt'
     $env:GITHUB_STEP_SUMMARY = Join-Path $scratch 'summary.md'
     $env:DNA_TARGET = 'App/App.csproj'
-    $env:DNA_VERSION = '2.7.1'
+    $env:DNA_VERSION = $Version
     $env:DNA_SETUP = 'false'
     $env:DNA_RESTORE = 'true'
     $env:DNA_PROJECT = 'false'
@@ -127,7 +127,12 @@ dotnet_diagnostic.DNA0014.severity = none
     $profileConfig = Join-Path $scratch 'App/dotnetarium.json'
     $profileJson = '{"Version":"2.0","AnalysisProfile":"max","MaxTaintAnalysisWork":1234,"ThreatModels":["local"]}'
     $profileJson | Set-Content -LiteralPath $profileConfig
-    if (-not $Published) {
+    $exe = Join-Path $env:DNA_TOOL $(if ($IsWindows) { 'dotnetarium.exe' } else { 'dotnetarium' })
+    $supportsProfile = [bool]((& $exe --help) -match '--analysis-profile\b')
+    if ((-not $Published -or [version]$Version -ge [version]'2.7.2') -and -not $supportsProfile) {
+        throw 'Expected CLI analysis-profile support is missing.'
+    }
+    if ($supportsProfile) {
         foreach ($profile in 'fast', 'full', 'max') {
             $env:DNA_PROFILE = $profile
             $env:DNA_SARIF = Join-Path $scratch "$profile.sarif"
