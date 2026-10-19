@@ -10,7 +10,7 @@ Point it at a solution or project, and let it handle SDK setup, dependency resto
 | [Action in existing CI](#existing-ci-or-private-feeds) | Reusing a prepared workspace or private feeds | Scan and upload; SDK setup and restore are optional |
 | [GitHub Enterprise Server](GITHUB_ENTERPRISE.md) | Running on an on-premises GitHub instance | Runner requirements and current limitations |
 
-The Action defaults to CLI **2.8.0** and works on GitHub-hosted Ubuntu and Windows. Self-hosted runners need PowerShell 7 (`pwsh`). SDK installation is enabled by default. The examples pin commits and the CLI version so adopting a newer release is an explicit change.
+The Action defaults to CLI **2.8.1** and works on GitHub-hosted Ubuntu and Windows. Self-hosted runners need PowerShell 7 (`pwsh`). SDK installation is enabled by default. The examples pin commits and the CLI version so adopting a newer release is an explicit change.
 
 See the scanner's [rule and framework coverage](https://github.com/dotnetarium/dotnetarium#what-it-checks) for the supported patterns.
 
@@ -36,7 +36,7 @@ jobs:
     uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@fa3f018805ad92a08c939f981e48e5ef3fa51c72
     with:
       target: src/MyApp.slnx
-      version: '2.8.0'
+      version: '2.8.1'
 ```
 
 This installs .NET 8 and 10 SDKs, restores dependencies and scans without running `dotnet build`. Solution scans omit test projects; pass a test `.csproj` explicitly to scan it. Set `project-mode: true` when you need SDK/MSBuild design-time loading.
@@ -63,7 +63,7 @@ jobs:
     uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@fa3f018805ad92a08c939f981e48e5ef3fa51c72
     with:
       target: src/MyApp.slnx       # Required: repository-relative .sln, .slnx or .csproj
-      version: '2.8.0'             # Exact stable CLI version, 2.7.0 or newer
+      version: '2.8.1'             # Exact stable CLI version, 2.7.0 or newer
       runner: ubuntu-latest        # Runner label: e.g. ubuntu-latest, windows-latest, your own label
       timeout-minutes: 20          # Positive job timeout within your runner's limits
       dotnet-version: |            # SDK versions; include .NET 10 for the scanner
@@ -109,7 +109,7 @@ Use the composite Action after checkout and any SDK setup, private-feed authenti
   uses: dotnetarium/dotnetarium-action@5ed964d1d7a35cc898b3d746d02928399d4ed020
   with:
     target: src/MyApp.slnx
-    version: '2.8.0'
+    version: '2.8.1'
     setup-dotnet: 'false'
     restore: 'false'
 ```

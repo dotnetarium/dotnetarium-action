@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: dotnetarium/dotnetarium
-          ref: ec7bd68fcd3cc92b0e0991ac175e07b4b3a49638 # v2.8.0
+          ref: b2da8d4f6f915b1d81b387c5a2192faa5cdf6e1a # v2.8.1
           path: .scanner-source
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
