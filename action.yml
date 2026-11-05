@@ -96,7 +96,7 @@ runs:
       run: '& "$env:GITHUB_ACTION_PATH/scripts/Prepare.ps1"'
     - name: Install .NET SDKs
       if: inputs.setup-dotnet == 'true'
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
     - name: Install pinned CLI
@@ -131,7 +131,7 @@ runs:
       run: '& "$env:GITHUB_ACTION_PATH/scripts/Scan.ps1"'
     - name: Upload SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' && steps.scan.outputs.sarif-ready == 'true' }}
-      uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+      uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
       with:
         sarif_file: ${{ steps.prepare.outputs.sarif-file }}
         category: ${{ inputs.category }}
