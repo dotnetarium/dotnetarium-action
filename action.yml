@@ -14,11 +14,8 @@ inputs:
     description: Install SDKs; disable when the job already prepared them.
     default: 'true'
   dotnet-version:
-    description: SDK versions for the scanner and target projects.
-    default: |
-      8.0.x
-      10.0.x
-      11.0.x
+    description: SDK versions to install. Defaults to .NET 8 and 10, plus .NET 11 with CLI 2.9.0 or newer.
+    default: ''
   restore:
     description: Run dotnet restore; disable when this workspace is already restored.
     default: 'true'
@@ -99,7 +96,7 @@ runs:
       if: inputs.setup-dotnet == 'true'
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
-        dotnet-version: ${{ inputs.dotnet-version }}
+        dotnet-version: ${{ inputs.dotnet-version || fromJSON(steps.prepare.outputs.default-dotnet-version) }}
     - name: Install pinned CLI
       shell: pwsh
       env:

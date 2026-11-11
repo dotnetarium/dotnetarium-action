@@ -22,7 +22,8 @@ if ($env:DNA_VERSION -notmatch '^\d+\.\d+\.\d+$' -or [version]$env:DNA_VERSION -
 if ($env:DNA_FRAMEWORK -and $env:DNA_FRAMEWORK -notin @('net8.0', 'net10.0', 'net11.0')) {
     throw 'framework must be net8.0, net10.0 or net11.0.'
 }
-if ($env:DNA_FRAMEWORK -eq 'net11.0' -and [version]$env:DNA_VERSION -lt [version]'2.9.0') {
+$supportsNet11 = [version]$env:DNA_VERSION -ge [version]'2.9.0'
+if ($env:DNA_FRAMEWORK -eq 'net11.0' -and -not $supportsNet11) {
     throw 'net11.0 requires Dotnetarium CLI 2.9.0 or newer.'
 }
 if ([string]::IsNullOrWhiteSpace($env:DNA_CONFIGURATION) -or $env:DNA_CONFIGURATION -match '[\r\n]') {
@@ -49,5 +50,8 @@ if ([IO.Path]::GetExtension($sarif) -ne '.sarif') { throw 'sarif-file must end i
 # Never overwrite a tracked or stale report, project or configuration file.
 if (Test-Path -LiteralPath $sarif) { throw 'sarif-file already exists. Choose a fresh output path.' }
 $tool = Join-Path $env:RUNNER_TEMP ('dotnetarium-' + [guid]::NewGuid().ToString('N'))
-@("target=$target", "config=$config", "sarif-file=$sarif", "tool-directory=$tool") |
+$sdkVersions = @('8.0.x', '10.0.x')
+if ($supportsNet11) { $sdkVersions += '11.0.x' }
+$sdkVersionsJson = ConvertTo-Json -InputObject ($sdkVersions -join "`n") -Compress
+@("target=$target", "config=$config", "sarif-file=$sarif", "tool-directory=$tool", "default-dotnet-version=$sdkVersionsJson") |
     Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8
