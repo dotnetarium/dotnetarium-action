@@ -19,8 +19,11 @@ if ($env:DNA_ARTIFACT -eq 'true' -and ([string]::IsNullOrWhiteSpace($env:DNA_ART
 if ($env:DNA_VERSION -notmatch '^\d+\.\d+\.\d+$' -or [version]$env:DNA_VERSION -lt [version]'2.7.0') {
     throw 'version must be an exact stable release, 2.7.0 or newer.'
 }
-if ($env:DNA_FRAMEWORK -and $env:DNA_FRAMEWORK -notin @('net8.0', 'net10.0')) {
-    throw 'framework must be net8.0 or net10.0.'
+if ($env:DNA_FRAMEWORK -and $env:DNA_FRAMEWORK -notin @('net8.0', 'net10.0', 'net11.0')) {
+    throw 'framework must be net8.0, net10.0 or net11.0.'
+}
+if ($env:DNA_FRAMEWORK -eq 'net11.0' -and [version]$env:DNA_VERSION -lt [version]'2.9.0') {
+    throw 'net11.0 requires Dotnetarium CLI 2.9.0 or newer.'
 }
 if ([string]::IsNullOrWhiteSpace($env:DNA_CONFIGURATION) -or $env:DNA_CONFIGURATION -match '[\r\n]') {
     throw 'configuration must be a nonempty single line.'
