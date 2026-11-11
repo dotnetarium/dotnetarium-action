@@ -4,7 +4,7 @@ Dotnetarium can run on a self-hosted Windows or Linux runner. The current Action
 
 ## Your runner
 
-Install PowerShell 7 (`pwsh`) and use a current Actions runner compatible with the Node 24 actions we depend on. The scanner needs .NET 10, plus the SDKs/reference packs required by your projects. If these are already installed, use the composite Action with `setup-dotnet: 'false'`.
+Install PowerShell 7 (`pwsh`) and use a current Actions runner compatible with the Node 24 actions we depend on. CLI 2.9.0 runs on the .NET 10 or .NET 11 runtime. Install the SDKs and reference packs for the projects you scan. If these are already installed, use the composite Action with `setup-dotnet: 'false'`.
 
 For the reusable workflow, select your own runner label instead of its `ubuntu-latest` default:
 
