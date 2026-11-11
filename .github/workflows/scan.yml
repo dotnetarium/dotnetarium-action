@@ -44,10 +44,8 @@ on:
         default: true
         type: boolean
       dotnet-version:
-        default: |
-          8.0.x
-          10.0.x
-          11.0.x
+        description: Optional SDK version list. Omit to use the defaults for the selected CLI.
+        default: ''
         type: string
       runner:
         default: ubuntu-latest
@@ -103,7 +101,7 @@ jobs:
           persist-credentials: false
       - name: Scan and upload
         id: scan
-        uses: dotnetarium/dotnetarium-action@0b008130aa386ec3f2f25a93d15d9340279ba0e8
+        uses: dotnetarium/dotnetarium-action@9bb86547c4b632198b34835856e705a46ea8361d
         with:
           target: ${{ inputs.target }}
           version: ${{ inputs.version }}

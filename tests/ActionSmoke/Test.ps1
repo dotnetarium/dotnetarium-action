@@ -60,6 +60,11 @@ public static class UnsafeCrypto {
         $pair = $line.Split('=', 2); $outputs[$pair[0]] = $pair[1]
     }
     if (-not $outputs['target'].EndsWith('App.csproj')) { throw 'Target was not resolved.' }
+    $sdks = ($outputs['default-dotnet-version'] | ConvertFrom-Json) -split "`n"
+    if ('8.0.x' -notin $sdks -or '10.0.x' -notin $sdks -or
+        ('11.0.x' -in $sdks) -ne ([version]$Version -ge [version]'2.9.0')) {
+        throw 'SDK defaults do not match the selected CLI version.'
+    }
     # Use the just-packed CLI instead of depending on a release being published.
     $env:DNA_TOOL = $outputs['tool-directory']
     $env:DNA_TARGET = $outputs['target']
