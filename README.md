@@ -10,7 +10,7 @@ Point it at a solution or project, and let it handle SDK setup, dependency resto
 | [Action in existing CI](#existing-ci-or-private-feeds) | Reusing a prepared workspace or private feeds | Scan and upload; SDK setup and restore are optional |
 | [GitHub Enterprise Server](GITHUB_ENTERPRISE.md) | Running on an on-premises GitHub instance | Runner requirements and current limitations |
 
-The Action defaults to CLI **2.8.1** and works on GitHub-hosted Ubuntu and Windows. Self-hosted runners need PowerShell 7 (`pwsh`). SDK installation is enabled by default. The examples pin commits and the CLI version so adopting a newer release is an explicit change.
+The Action defaults to CLI **2.9.0** with .NET 11 support and works on GitHub-hosted Ubuntu and Windows. Self-hosted runners need PowerShell 7 (`pwsh`). SDK installation is enabled by default. The examples pin commits and the CLI version so adopting a newer release is an explicit change.
 
 See the scanner's [rule and framework coverage](https://github.com/dotnetarium/dotnetarium#what-it-checks) for the supported patterns.
 
@@ -33,13 +33,13 @@ permissions:
 
 jobs:
   security:
-    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@fa3f018805ad92a08c939f981e48e5ef3fa51c72
+    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@13b3d35996930bcb0e8481ec05fd02f4ccc8eb4d
     with:
       target: src/MyApp.slnx
-      version: '2.8.1'
+      version: '2.9.0'
 ```
 
-This installs .NET 8 and 10 SDKs, restores dependencies and scans without running `dotnet build`. Solution scans omit test projects; pass a test `.csproj` explicitly to scan it. Set `project-mode: true` when you need SDK/MSBuild design-time loading.
+This installs the .NET 8, 10 and 11 SDKs, restores dependencies and scans without running `dotnet build`. Solution scans omit test projects; pass a test `.csproj` explicitly to scan it. Set `project-mode: true` when you need SDK/MSBuild design-time loading.
 
 ## Complete configuration
 
@@ -60,19 +60,17 @@ permissions:
 
 jobs:
   security:
-    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@fa3f018805ad92a08c939f981e48e5ef3fa51c72
+    uses: dotnetarium/dotnetarium-action/.github/workflows/scan.yml@13b3d35996930bcb0e8481ec05fd02f4ccc8eb4d
     with:
       target: src/MyApp.slnx       # Required: repository-relative .sln, .slnx or .csproj
-      version: '2.8.1'             # Exact stable CLI version, 2.7.0 or newer
+      version: '2.9.0'             # Exact stable CLI version, 2.7.0 or newer
       runner: ubuntu-latest        # Runner label: e.g. ubuntu-latest, windows-latest, your own label
       timeout-minutes: 20          # Positive job timeout within your runner's limits
-      dotnet-version: |            # SDK versions; include .NET 10 for the scanner
-        8.0.x
-        10.0.x
+      dotnet-version: ''           # '' = SDK defaults for the selected CLI; otherwise a version list
       restore: true                # true | false; false uses already-restored dependencies
       project-mode: false          # false = no-build; true = MSBuild design-time loading
       configuration: Debug         # Your project configuration, e.g. Debug or Release
-      framework: ''                # '' = automatic; net8.0 | net10.0
+      framework: ''                # '' = automatic; net8.0 | net10.0 | net11.0
       config: ''                   # '' = discovery; otherwise a repository-relative JSON file
       analysis-profile: ''         # '' = configured profile; fast | full | max (CLI 2.7.2+)
       respect-editorconfig: false  # true | false; apply rule severities and suppressions
@@ -106,10 +104,10 @@ Use the composite Action after checkout and any SDK setup, private-feed authenti
 ```yaml
 - name: Scan prepared workspace
   id: scan
-  uses: dotnetarium/dotnetarium-action@5ed964d1d7a35cc898b3d746d02928399d4ed020
+  uses: dotnetarium/dotnetarium-action@9bb86547c4b632198b34835856e705a46ea8361d
   with:
     target: src/MyApp.slnx
-    version: '2.8.1'
+    version: '2.9.0'
     setup-dotnet: 'false'
     restore: 'false'
 ```
@@ -125,7 +123,9 @@ Use the job permissions from the standalone example when uploading SARIF. The sc
 
 Composite boolean inputs may be quoted strings; reusable workflow booleans use YAML `true` and `false`. Both forms are shown above.
 
-The scanner itself needs .NET 10; project loading also needs the appropriate SDKs/reference packs. By default the Action installs .NET 8 and 10. Project restore uses your repository's feeds and authentication. CLI installation uses a separate NuGet.org configuration, so project feeds and `global.json` do not redirect tool installation. Restored files do not automatically transfer between jobs.
+CLI 2.9.0 runs on the .NET 10 or .NET 11 runtime. Earlier CLI releases require .NET 10. Project loading also needs the SDKs and reference packs for your target frameworks. The default SDK set is .NET 8 and 10, plus .NET 11 with CLI 2.9.0 or newer. Override it with `dotnet-version` when your projects need a different set.
+
+Project restore uses your repository's feeds and authentication. CLI installation uses a separate NuGet.org configuration, so project feeds and `global.json` do not redirect tool installation. Restored files do not automatically transfer between jobs.
 
 Restore evaluates MSBuild targets. Disable it for an already-restored workspace; no-build scanning itself does not run restore or arbitrary project targets. See [scan modes](https://github.com/dotnetarium/dotnetarium/blob/main/docs/scan-modes.md) for loading behavior.
 

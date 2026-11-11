@@ -1,5 +1,5 @@
 name: Dotnetarium C# Security Scan
-description: Scan C# and .NET 8/10 without building, with SARIF security alerts, data flows and PR annotations.
+description: Scan C# on .NET 8, 10 and 11 without building. Upload SARIF findings and data flows to GitHub code scanning.
 branding:
   icon: shield
   color: blue
@@ -9,15 +9,13 @@ inputs:
     required: true
   version:
     description: Exact stable CLI version, 2.7.0 or newer.
-    default: '2.8.1'
+    default: '2.9.0'
   setup-dotnet:
     description: Install SDKs; disable when the job already prepared them.
     default: 'true'
   dotnet-version:
-    description: SDK versions for the scanner and target projects.
-    default: |
-      8.0.x
-      10.0.x
+    description: SDK versions to install. Defaults to .NET 8 and 10, plus .NET 11 with CLI 2.9.0 or newer.
+    default: ''
   restore:
     description: Run dotnet restore; disable when this workspace is already restored.
     default: 'true'
@@ -39,7 +37,7 @@ inputs:
     description: Project configuration used for both restore and scanning.
     default: Debug
   framework:
-    description: Optional root target framework, net8.0 or net10.0.
+    description: Optional root target framework, net8.0, net10.0 or net11.0. The net11.0 target needs CLI 2.9.0 or newer.
   sarif-file:
     description: Repository-relative output file. Use a distinct path for each invocation.
     default: dotnetarium.sarif
@@ -96,9 +94,9 @@ runs:
       run: '& "$env:GITHUB_ACTION_PATH/scripts/Prepare.ps1"'
     - name: Install .NET SDKs
       if: inputs.setup-dotnet == 'true'
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
-        dotnet-version: ${{ inputs.dotnet-version }}
+        dotnet-version: ${{ inputs.dotnet-version || fromJSON(steps.prepare.outputs.default-dotnet-version) }}
     - name: Install pinned CLI
       shell: pwsh
       env:
@@ -131,7 +129,7 @@ runs:
       run: '& "$env:GITHUB_ACTION_PATH/scripts/Scan.ps1"'
     - name: Upload SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' && steps.scan.outputs.sarif-ready == 'true' }}
-      uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+      uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
       with:
         sarif_file: ${{ steps.prepare.outputs.sarif-file }}
         category: ${{ inputs.category }}

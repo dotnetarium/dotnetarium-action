@@ -9,7 +9,7 @@ on:
         type: string
       version:
         description: Exact stable CLI version.
-        default: '2.8.1'
+        default: '2.9.0'
         type: string
       config:
         description: Optional repository-relative JSON configuration path.
@@ -44,9 +44,8 @@ on:
         default: true
         type: boolean
       dotnet-version:
-        default: |
-          8.0.x
-          10.0.x
+        description: Optional SDK version list. Omit to use the defaults for the selected CLI.
+        default: ''
         type: string
       runner:
         default: ubuntu-latest
@@ -102,7 +101,7 @@ jobs:
           persist-credentials: false
       - name: Scan and upload
         id: scan
-        uses: dotnetarium/dotnetarium-action@5ed964d1d7a35cc898b3d746d02928399d4ed020
+        uses: dotnetarium/dotnetarium-action@9bb86547c4b632198b34835856e705a46ea8361d
         with:
           target: ${{ inputs.target }}
           version: ${{ inputs.version }}
