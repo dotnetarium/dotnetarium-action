@@ -193,6 +193,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dotnetarium-sarif
@@ -212,4 +215,32 @@ jobs:
           }
           if (-not $env:ANALYSIS_STATUS -or $env:ANALYSIS_STATUS -ne $properties.'dotnetarium.analysisStatus') {
             throw 'Reusable workflow lost analysis status.'
+          }
+          foreach ($id in @('DNA0003', 'DNA0014')) {
+            $rule = $run.tool.driver.rules | Where-Object id -eq $id | Select-Object -First 1
+            if (-not $rule.help.markdown -or -not $rule.helpUri -or
+                -not $rule.properties.'security-severity' -or -not $rule.properties.precision -or
+                'security' -notin $rule.properties.tags -or
+                -not ($rule.properties.tags -match '^external/cwe/cwe-\d+$')) {
+              throw "Missing GitHub code scanning rule details for $id."
+            }
+            $result = $run.results | Where-Object ruleId -eq $id | Select-Object -First 1
+            if (-not $result.message.text -or -not $result.partialFingerprints) {
+              throw "Missing finding message or alert fingerprint for $id."
+            }
+            foreach ($location in $result.locations) {
+              $physical = $location.physicalLocation
+              $path = [Uri]::UnescapeDataString($physical.artifactLocation.uri)
+              if ([IO.Path]::IsPathRooted($path) -or
+                  -not (Test-Path -LiteralPath $path -PathType Leaf) -or
+                  $physical.region.startLine -lt 1 -or $physical.region.startColumn -lt 1) {
+                throw "Finding location does not map to source in the checkout for $id."
+              }
+            }
+          }
+          $xss = $run.results | Where-Object ruleId -eq 'DNA0003' | Select-Object -First 1
+          $flow = @($xss.codeFlows[0].threadFlows[0].locations)
+          if ($flow.Count -lt 2 -or $flow[0].location.message.text -ne 'Source' -or
+              $flow[-1].location.message.text -ne 'Sink') {
+            throw 'Missing source-to-sink steps for GitHub code scanning.'
           }
