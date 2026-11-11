@@ -9,7 +9,7 @@ on:
         type: string
       version:
         description: Exact stable CLI version.
-        default: '2.8.1'
+        default: '2.9.0'
         type: string
       config:
         description: Optional repository-relative JSON configuration path.
@@ -47,6 +47,7 @@ on:
         default: |
           8.0.x
           10.0.x
+          11.0.x
         type: string
       runner:
         default: ubuntu-latest
@@ -102,7 +103,7 @@ jobs:
           persist-credentials: false
       - name: Scan and upload
         id: scan
-        uses: dotnetarium/dotnetarium-action@5ed964d1d7a35cc898b3d746d02928399d4ed020
+        uses: dotnetarium/dotnetarium-action@0b008130aa386ec3f2f25a93d15d9340279ba0e8
         with:
           target: ${{ inputs.target }}
           version: ${{ inputs.version }}
