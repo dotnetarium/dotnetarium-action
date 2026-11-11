@@ -1,8 +1,26 @@
 # Dotnetarium C# Security Scan
 
-Bring C# security findings into the place where your team already reviews code. The Dotnetarium Action runs our [open-source .NET scanner](https://github.com/dotnetarium/dotnetarium) in GitHub Actions, using the same rules and taint analysis as the command-line tool and NuGet analyzer. It follows untrusted data through your code and checks for injection, unsafe file access, exposed credentials and other security risks, with support for modern .NET frameworks and libraries.
+Review C# security findings directly in GitHub code scanning and pull requests, with the context needed to investigate and fix them.
 
-Point it at a solution or project, and let it handle SDK setup, dependency restore, scanning and SARIF upload—or fit it into a CI job you've already prepared. Scanning uses no-build mode by default, with project mode available when you need MSBuild evaluation. Findings appear in GitHub code scanning with code locations and available data-flow paths, so reviewers can investigate the problem and understand why it matters. You get the scanner's C# security coverage with results your team can work through together.
+Dotnetarium scans .NET 8, 10 and 11 projects and solutions with an open-source security analyzer built on Roslyn. Its taint analysis follows untrusted input through supported method calls, lambdas and framework entry points to sensitive operations. Scan without building your application, with optional MSBuild design-time loading for projects that need it.
+
+### Findings built for GitHub code scanning
+
+The Action uploads SARIF 2.1.0 through GitHub's SARIF uploader. Findings become native code scanning alerts that your team can triage, dismiss and track alongside other analysis tools. Alerts on changed lines can appear in pull request checks.
+
+- **Source locations** identify the affected file, line and column so reviewers can open the code in context.
+- **Data-flow paths** show the source and sink of taint findings, with available intermediate steps to help explain how untrusted input reaches the operation.
+- **Security severity and CWE tags** help reviewers prioritize findings and understand the weakness being reported.
+- **Rule guidance** includes an explanation, examples and remediation advice, embedded in the report and linked to the rule documentation.
+- **Stable fingerprints** help GitHub track the same finding across scans and reduce duplicate alerts.
+
+### C# security coverage
+
+Checks cover SQL and command injection, cross-site scripting, server-side request forgery, untrusted file paths, unsafe deserialization, exposed credentials, risky cryptography and insecure application settings. Framework models include ASP.NET Core, Razor/Blazor, gRPC, SignalR, database libraries and message consumers. See the scanner's [rule and framework coverage](https://github.com/dotnetarium/dotnetarium#what-it-checks) for supported patterns.
+
+### Fit the scan into your workflow
+
+Start with the reusable workflow to handle checkout, SDK installation, dependency restore, scanning and report upload. Use the composite Action in an existing job to reuse your SDK setup, private-feed authentication and restored dependencies. The job summary reports finding counts and scan status, and a downloadable SARIF artifact is available for further investigation.
 
 | Setup | Use it when | What it handles |
 | --- | --- | --- |
@@ -11,8 +29,6 @@ Point it at a solution or project, and let it handle SDK setup, dependency resto
 | [GitHub Enterprise Server](GITHUB_ENTERPRISE.md) | Running on an on-premises GitHub instance | Runner requirements and current limitations |
 
 The Action defaults to CLI **2.9.0** with .NET 11 support and works on GitHub-hosted Ubuntu and Windows. Self-hosted runners need PowerShell 7 (`pwsh`). SDK installation is enabled by default. The examples pin commits and the CLI version so adopting a newer release is an explicit change.
-
-See the scanner's [rule and framework coverage](https://github.com/dotnetarium/dotnetarium#what-it-checks) for the supported patterns.
 
 ## Standalone scan
 

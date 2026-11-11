@@ -1,5 +1,5 @@
 name: Dotnetarium C# Security Scan
-description: Scan C# on .NET 8, 10 and 11 without building. Upload SARIF findings and data flows to GitHub code scanning.
+description: Find C# security issues with GitHub code scanning alerts, source-to-sink paths and fix guidance. Supports .NET 8/10/11.
 branding:
   icon: shield
   color: blue
